@@ -321,10 +321,9 @@ public class LobbyService() : GeneralService("lobby", "LobbyService")
         {
             var currentMachineIds = new HashSet<string>(Players.Select(p => p.MachineId));
             var newMachineIds = new HashSet<string>(players.Select(p => p.MachineId));
-            
+
             if (currentMachineIds.SetEquals(newMachineIds))
             {
-                LogWrapper.Debug("Player list has not changed");
                 return; // nothing was changed
             }
 
@@ -377,7 +376,7 @@ public class LobbyService() : GeneralService("lobby", "LobbyService")
             if (clientEntity is null)
             {
                 throw new InvalidOperationException(
-                    "加入大厅失败，可能是大厅不存在或已被解散");
+                    "Failed to join lobby. The LobbyCode might be incorrect or the lobby is not exist.");
             }
 
             clientEntity.Client.Heartbeat += _ClientOnHeartbeat;

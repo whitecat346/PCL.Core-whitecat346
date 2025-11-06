@@ -36,14 +36,13 @@ public class PlayerPingHandler : IRequestHandler
 
             var guestProfile = profile with { Kind = PlayerKind.GUEST };
 
-            var listChanged = false;
             context.TrackedPlayers.AddOrUpdate(guestProfile.MachineId,
                 _ =>
                 {
                     LogWrapper.Info("ScaffoldingServer",
                         $"New player '{guestProfile.Name}' with machine_id '{guestProfile.MachineId}' connected.");
                     var newPlayer = new TrackedPlayerProfile { Profile = profile, LastSeenUtc = DateTime.UtcNow };
-                    listChanged = true;
+                    context.OnPlayerProfilesChanged();
                     return newPlayer;
                 },
                 (_, existingPlayer) =>
@@ -54,11 +53,6 @@ public class PlayerPingHandler : IRequestHandler
                     return existingPlayer;
                 });
 
-            if (listChanged)
-            {
-                context.OnPlayerProfilesChanged();
-            }
-            
             return Task.FromResult(((byte)0, ReadOnlyMemory<byte>.Empty));
         }
         catch (JsonException ex)

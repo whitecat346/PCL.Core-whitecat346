@@ -77,7 +77,6 @@ public sealed class LobbyController
                 if (profile.Kind == PlayerKind.HOST)
                 {
                     hostname = profile.Name;
-                    LogWrapper.Debug($"大厅创建者的用户名: {hostname}");
                 }
             }
 

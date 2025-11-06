@@ -1,7 +1,5 @@
 using PCL.Core.Link.Scaffolding.Client.Models;
 using PCL.Core.Link.Scaffolding.Server.Abstractions;
-using PCL.Core.Link.Scaffolding.EasyTier;
-using PCL.Core.App;
 using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -29,7 +27,7 @@ public class GetPlayerProfileListHandler : IRequestHandler
         {
             Name = context.PlayerName,
             MachineId = Utils.Secret.Identify.LaunchId,
-            Vendor = $"PCL CE {Basics.VersionName}, EasyTier {EasyTierMetadata.CurrentEasyTierVer}",
+            Vendor = "pclce",
             Kind = PlayerKind.HOST
         };
 
