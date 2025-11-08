@@ -33,9 +33,24 @@ public sealed class ScaffoldingServer : IAsyncDisposable
 
     #region Events
 
+    /// <summary>
+    /// Occurs when the server has started successfully.
+    /// </summary>
     public event Action<IReadOnlyList<PlayerProfile>>? ServerStarted;
+
+    /// <summary>
+    /// Occurs when the server has stopped.
+    /// </summary>
     public event Action? ServerStopped;
+
+    /// <summary>
+    /// Occurs when the server encounters an exception.
+    /// </summary>
     public event Action<Exception?>? ServerException;
+
+    /// <summary>
+    /// Occurs when the server receives a player profile ping.
+    /// </summary>
     public event Action<IReadOnlyList<PlayerProfile>>? PlayerProfilePing;
 
     private void _OnContextPlayersPing(IReadOnlyList<PlayerProfile> players)
@@ -45,6 +60,11 @@ public sealed class ScaffoldingServer : IAsyncDisposable
 
     #endregion
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ScaffoldingServer"/> class.
+    /// </summary>
+    /// <param name="port">The minecraft shared port.</param>
+    /// <param name="context">The server running context.</param>
     public ScaffoldingServer(int port, IServerContext context)
     {
         _listener = new TcpListener(IPAddress.Loopback, port);
@@ -62,6 +82,9 @@ public sealed class ScaffoldingServer : IAsyncDisposable
         };
     }
 
+    /// <summary>
+    /// Starts the server.
+    /// </summary>
     public void Start()
     {
         try
@@ -75,7 +98,7 @@ public sealed class ScaffoldingServer : IAsyncDisposable
             LogWrapper.Error(ex, "ScaffoldingServer",
                 $"Failed to start TCP listener on port {((IPEndPoint)_listener.LocalEndpoint).Port}. The port might be in use or blocked.");
             ServerException?.Invoke(ex);
-            return; // 启动失败，直接返回
+            return;
         }
 
         _listenTask = _ListenForClientsAsync(_cts.Token);
@@ -165,7 +188,7 @@ public sealed class ScaffoldingServer : IAsyncDisposable
             }
             catch (OperationCanceledException)
             {
-                LogWrapper.Debug("ScaffoldingServer", "Listening task cancelled.");
+                // normal condition, ignore
                 break;
             }
             catch (Exception ex)
@@ -185,8 +208,6 @@ public sealed class ScaffoldingServer : IAsyncDisposable
                 ServerStopped?.Invoke();
                 break;
             }
-
-            LogWrapper.Debug("ScaffoldingServer", "Listening task finished.");
         }
     }
 
@@ -194,6 +215,7 @@ public sealed class ScaffoldingServer : IAsyncDisposable
     {
         var sessionId = Guid.NewGuid().ToString();
         var clientEndPoint = tcpClient.Client.RemoteEndPoint?.ToString() ?? "unknown";
+
         LogWrapper.Debug("ScaffoldingServer", $"New connection {sessionId} from {clientEndPoint}.");
 
         using (tcpClient)
@@ -211,8 +233,10 @@ public sealed class ScaffoldingServer : IAsyncDisposable
                     {
                         readResult = await reader.ReadAsync(ct).ConfigureAwait(false);
                     }
-                    catch (IOException ex) when (ex.InnerException is SocketException se &&
-                                                 se.SocketErrorCode == SocketError.ConnectionReset)
+                    catch (IOException ex) when (ex.InnerException is SocketException
+                    {
+                        SocketErrorCode: SocketError.ConnectionReset
+                    })
                     {
                         LogWrapper.Info("ScaffoldingServer",
                             $"Connection {sessionId} from {clientEndPoint} was closed by the client (Connection Reset).");
@@ -222,7 +246,6 @@ public sealed class ScaffoldingServer : IAsyncDisposable
                     var buffer = readResult.Buffer;
                     var consumedPosition = buffer.Start;
 
-                    // REFACTOR: 这是核心修改。我们现在循环处理一个缓冲区，直到无法再解析出完整的帧。
                     while (_TryParseFrame(in buffer, out var requestFrame, out var frameEndPosition))
                     {
                         LogWrapper.Debug("ScaffoldingServer", $"[{sessionId}] Received frame: {requestFrame.TypeInfo}");
@@ -248,13 +271,10 @@ public sealed class ScaffoldingServer : IAsyncDisposable
                                 $"[{sessionId}] No handler for type: {requestFrame.TypeInfo}");
                         }
 
-                        // 将缓冲区切片到已处理帧的末尾，为下一次循环做准备
                         consumedPosition = frameEndPosition;
                         buffer = buffer.Slice(consumedPosition);
                     }
 
-                    // 告诉 PipeReader 我们已经检查了直到 readResult.Buffer.End 的所有数据，
-                    // 并且我们已经处理了直到 consumedPosition 的数据。
                     reader.AdvanceTo(consumedPosition, buffer.End);
 
                     if (readResult.IsCompleted)
@@ -270,14 +290,12 @@ public sealed class ScaffoldingServer : IAsyncDisposable
             }
             catch (OperationCanceledException)
             {
-                LogWrapper.Debug("ScaffoldingServer", $"Connection {sessionId} was canceled.");
+                // ignore
             }
             catch (Exception ex)
             {
                 LogWrapper.Error(ex, "ScaffoldingServer", $"Unexpected error on connection {sessionId}.");
             }
-
-            LogWrapper.Debug("ScaffoldingServer", $"Connection {sessionId} from {clientEndPoint} has ended.");
         }
     }
 
@@ -332,7 +350,6 @@ public sealed class ScaffoldingServer : IAsyncDisposable
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        LogWrapper.Debug("ScaffoldingServer", "Come into DisposeAsync().");
         if (!_cts.IsCancellationRequested)
         {
             await _cts.CancelAsync().ConfigureAwait(false);
@@ -375,8 +392,6 @@ public sealed class ScaffoldingServer : IAsyncDisposable
         _listener.Stop();
 
         _cts.Dispose();
-
-        LogWrapper.Debug("ScaffoldingServer", "Server and all background tasks stopped gracefully.");
 
         ServerStopped?.Invoke();
     }

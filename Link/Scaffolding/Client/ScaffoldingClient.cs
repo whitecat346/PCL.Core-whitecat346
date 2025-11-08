@@ -44,12 +44,12 @@ public sealed class ScaffoldingClient(string host, int scfPort, string playerNam
     #region Events
 
     /// <summary>
-    /// Occurs when a heartbeat signal is received, providing the current list of player profiles and the elapsed time
-    /// since the last heartbeat.
+    /// Occurs when a heartbeat signal is successfully sent and reviced, providing the current list of player profiles<br/>
+    /// and the elapsed time since the last heartbeat.
     /// </summary>
     /// <remarks>
-    /// Subscribers can use this event to monitor player activity or synchronize state at regular
-    /// intervals. The event provides a read-only list of player profiles and an integer representing the elapsed time,
+    /// Subscribers can use this event to monitor player activity or synchronize state at regular<br/>
+    /// intervals. The event provides a read-only list of player profiles and an integer representing the elapsed time,<br/>
     /// typically in milliseconds or seconds, depending on the implementation.
     /// </remarks>
     public event Action<IReadOnlyList<PlayerProfile>, long>? Heartbeat;
@@ -63,6 +63,9 @@ public sealed class ScaffoldingClient(string host, int scfPort, string playerNam
 
     public IReadOnlyList<PlayerProfile>? PlayerList;
 
+    /// <summary>
+    /// Demonstrates whether the client is currently connected to the server.
+    /// </summary>
     public bool IsConnected => _state == ClientState.Connected;
 
     /// <summary>
@@ -140,7 +143,7 @@ public sealed class ScaffoldingClient(string host, int scfPort, string playerNam
             }
             catch (Exception ex)
             {
-                LogWrapper.Error(ex, "[ScaffoldingClient]",
+                LogWrapper.Error(ex, "ScaffoldingClient",
                     "Failed when sending heartbeat message. Maybe the server has been shut down.");
 
                 ServerShuttedDown?.Invoke();
