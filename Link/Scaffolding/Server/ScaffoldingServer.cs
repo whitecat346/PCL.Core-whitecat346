@@ -269,6 +269,13 @@ public sealed class ScaffoldingServer : IAsyncDisposable
                         {
                             LogWrapper.Warn("ScaffoldingServer",
                                 $"[{sessionId}] No handler for type: {requestFrame.TypeInfo}");
+
+                            var errorRep = new byte[5];
+                            errorRep[0] = 255;
+                            BinaryPrimitives.WriteUInt32BigEndian(errorRep.AsSpan(1, 4), 0);
+                            await writer.WriteAsync(errorRep, ct).ConfigureAwait(false);
+
+                            break;
                         }
 
                         consumedPosition = frameEndPosition;
