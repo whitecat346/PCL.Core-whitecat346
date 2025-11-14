@@ -69,8 +69,7 @@ public class ScaffoldingServerContext : IServerContext
         {
             Name = playerName,
             MachineId = Utils.Secret.Identify.LaunchId,
-            // Please update ScaffoldingFactory.cs at the same time.
-            Vendor = $"PCL CE {Basics.VersionName}, EasyTier {EasyTierMetadata.CurrentEasyTierVer}",
+            Vendor = $"PCL CE {Basics.VersionName}, EasyTier {EasyTierMetadata.CurrentEasyTierVersion}",
             Kind = PlayerKind.HOST
         };
 

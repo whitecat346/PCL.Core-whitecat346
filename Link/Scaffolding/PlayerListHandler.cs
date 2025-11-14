@@ -3,8 +3,13 @@ using System.Collections.Generic;
 
 namespace PCL.Core.Link.Scaffolding;
 
-public class PlayerListHandler
+public static class PlayerListHandler
 {
+    /// <summary>
+    /// Sort the player list so that the host is always first.
+    /// </summary>
+    /// <param name="list">Original player list.</param>
+    /// <returns>Sorted player list.</returns>
     public static List<PlayerProfile> Sort(IReadOnlyList<PlayerProfile> list)
     {
         var sorted = new List<PlayerProfile>();

@@ -130,6 +130,9 @@ public class LobbyService() : GeneralService("lobby", "LobbyService")
         !File.Exists(Path.Combine(EasyTierMetadata.EasyTierFilePath, "easytier-cli.exe"));
 
 
+    /// <summary>
+    /// Initialize lobby service.
+    /// </summary>
     public static async Task InitializeAsync()
     {
         if (CurrentState is not LobbyState.Idle && CurrentState is not LobbyState.Error)

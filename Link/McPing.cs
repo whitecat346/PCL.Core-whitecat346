@@ -52,7 +52,7 @@ public class McPing : IDisposable
         try
         {
             LogWrapper.Debug("McPing", $"Connecting to {_endpoint}");
-            await so.ConnectAsync(_endpoint.Address, _endpoint.Port, linkedCts.Token);
+            await so.ConnectAsync(_endpoint.Address, _endpoint.Port, linkedCts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -74,25 +74,27 @@ public class McPing : IDisposable
         var watcher = new Stopwatch();
         try
         {
-            await stream.WriteAsync(handshakePacket, linkedCts.Token);
+            await stream.WriteAsync(handshakePacket, linkedCts.Token).ConfigureAwait(false);
             LogWrapper.Debug("McPing", $"Handshake sent, packet length: {handshakePacket.Length}");
 
-            await stream.WriteAsync(statusPacket, linkedCts.Token);
+            await stream.WriteAsync(statusPacket, linkedCts.Token).ConfigureAwait(false);
             LogWrapper.Debug("McPing", $"Status sent, packet length: {statusPacket.Length}");
 
             var buffer = new byte[4096];
             watcher.Start();
 
-            var totalLength = Convert.ToInt64(await VarIntHelper.ReadFromStreamAsync(stream, linkedCts.Token));
+            var totalLength =
+                Convert.ToInt64(await VarIntHelper.ReadFromStreamAsync(stream, linkedCts.Token).ConfigureAwait(false));
             watcher.Stop();
+
             LogWrapper.Debug("McPing", $"Total length: {totalLength}");
 
             long readLength = 0;
             while (readLength < totalLength)
             {
-                var curReaded = await stream.ReadAsync(buffer, linkedCts.Token);
+                var curReaded = await stream.ReadAsync(buffer, linkedCts.Token).ConfigureAwait(false);
                 readLength += curReaded;
-                await res.WriteAsync(buffer, 0, curReaded, linkedCts.Token);
+                await res.WriteAsync(buffer, 0, curReaded, linkedCts.Token).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -115,11 +117,15 @@ public class McPing : IDisposable
         var retBinary = res.ToArray();
         var dataLength =
             Convert.ToInt32(VarIntHelper.Decode(retBinary.Skip(1).ToArray(), out var packDataHeaderLength));
+
         LogWrapper.Debug("McPing", $"ServerDataLength: {dataLength}");
+
         if (dataLength > retBinary.Length) throw new Exception("The server data is too large");
+
         var retCtx = Encoding.UTF8.GetString(retBinary.Skip(1 + packDataHeaderLength).Take(dataLength).ToArray());
 
         var retJson = JsonNode.Parse(retCtx) ?? throw new NullReferenceException("服务器返回了错误的信息");
+
 #if DEBUG
         var resJsonDebug = retJson.DeepClone();
         if (resJsonDebug is JsonObject jsonObject && jsonObject.ContainsKey("favicon"))
@@ -129,6 +135,7 @@ public class McPing : IDisposable
 
         LogWrapper.Debug("McPing", resJsonDebug.ToJsonString());
 #endif
+
         var versionNode = retJson["version"] ?? throw new NullReferenceException("服务器返回了错误的字段，缺失: version");
         var playersNode = retJson["players"] ?? new JsonObject();
         var descNode = _ConvertJNodeToMcString(retJson["description"] ?? new JsonObject());
@@ -156,34 +163,43 @@ public class McPing : IDisposable
                         x["version"]?.ToString() ?? string.Empty))
                     .ToList())
         );
+
         return ret;
     }
 
     public async Task<McPingResult?> PingOldAsync()
     {
-        using var so = new Socket(SocketType.Stream, ProtocolType.Tcp);
+        using var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
         using var cts = new CancellationTokenSource();
+
         cts.CancelAfter(_timeout);
         cts.Token.Register(() =>
         {
             try
             {
-                if (so.Connected) so.Close();
+                if (socket.Connected) socket.Close();
             }
             catch (ObjectDisposedException)
             {
                 /* Ignore */
             }
         });
-        await so.ConnectAsync(_endpoint, cts.Token);
+
+        await socket.ConnectAsync(_endpoint, cts.Token).ConfigureAwait(false);
+
         LogWrapper.Debug("McPing", $"Connected to {_endpoint}");
-        await using var stream = new NetworkStream(so, false);
+
+        await using var stream = new NetworkStream(socket, false);
         var queryPack = new byte[] { 0xfe, 0x01 };
-        await stream.WriteAsync(queryPack.AsMemory(0, queryPack.Length), cts.Token);
+
+        await stream.WriteAsync(queryPack.AsMemory(0, queryPack.Length), cts.Token).ConfigureAwait(false);
         var ms = new MemoryStream();
-        await stream.CopyToAsync(ms, cts.Token);
-        so.Close();
+
+        await stream.CopyToAsync(ms, cts.Token).ConfigureAwait(false);
+        socket.Close();
+
         var retData = ms.ToArray();
+
         if (retData.Length < 21 || (retData.Length >= 21 && retData[0] != 0xff))
         {
             LogWrapper.Info("McPing", $"Unknown response from {_endpoint}, ignore");
@@ -191,6 +207,7 @@ public class McPing : IDisposable
         }
 
         var retRep = Encoding.UTF8.GetString(retData);
+
         try
         {
             var retPart = retRep.Split(["\0\0\0"], StringSplitOptions.None);
@@ -198,10 +215,17 @@ public class McPing : IDisposable
                     .Where((_, index) => index % 2 == 0)
                     .ToArray()))
                 .ToArray();
+
             if (retPart.Length < 6)
                 return null;
+
             return new McPingResult(new McPingVersionResult(retPart[2], int.Parse(retPart[1])),
-                new McPingPlayerResult(int.Parse(retPart[5]), int.Parse(retPart[4]), []), retPart[3], string.Empty, 0,
+                new McPingPlayerResult(int.Parse(retPart[5]),
+                    int.Parse(retPart[4]),
+                    []),
+                retPart[3],
+                string.Empty,
+                0,
                 new McPingModInfoResult(string.Empty, []));
         }
         catch (Exception e)
@@ -216,6 +240,7 @@ public class McPing : IDisposable
     /// </summary>
     /// <param name="serverIp">服务器的地址</param>
     /// <param name="serverPort">服务器的端口</param>
+    /// <exception cref="ArgumentOutOfRangeException">Server address is too long.</exception>
     /// <returns>返回握手包的字节数组</returns>
     private byte[] _BuildHandshakePacket(string serverIp, int serverPort)
     {
@@ -223,7 +248,9 @@ public class McPing : IDisposable
         handshake.AddRange(VarIntHelper.Encode(0)); //状态头 表明这是一个握手包
         handshake.AddRange(VarIntHelper.Encode(772)); //协议头 表明请求客户端的版本
         var binaryIp = Encoding.UTF8.GetBytes(serverIp);
-        if (binaryIp.Length > 255) throw new Exception("服务器地址过长");
+
+        if (binaryIp.Length > 255) throw new ArgumentOutOfRangeException("服务器地址过长");
+
         handshake.AddRange(VarIntHelper.Encode((uint)binaryIp.Length)); //服务器地址长度
         handshake.AddRange(binaryIp); //服务器地址
         handshake.AddRange(BitConverter.GetBytes((ushort)serverPort).Reverse()); //服务器端口
@@ -352,6 +379,7 @@ public class McPing : IDisposable
 
     private bool _disposed;
 
+    /// <inheritdoc/>
     public void Dispose()
     {
         if (_disposed) return;

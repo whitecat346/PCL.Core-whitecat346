@@ -1,8 +1,8 @@
 using PCL.Core.App;
-using PCL.Core.Link.EasyTier;
 using PCL.Core.Link.Scaffolding;
 using PCL.Core.Link.Scaffolding.Client.Models;
 using PCL.Core.Link.Scaffolding.Client.Requests;
+using PCL.Core.Link.Scaffolding.EasyTier;
 using PCL.Core.Logging;
 using PCL.Core.Net;
 using PCL.Core.Utils.Exts;
@@ -198,8 +198,9 @@ public sealed class LobbyController
         if (Config.Link.ServerType != 2)
         {
             servers = (
-                from relay in ETRelay.RelayList
-                where (relay.Type == ETRelayType.Selfhosted && serverType != 2) || (relay.Type == ETRelayType.Community && serverType == 1)
+                from relay in EasyTierRelayData.RelayList
+                where (relay.Type == EasyTierRelayType.Selfhosted && serverType != 2) ||
+                      (relay.Type == EasyTierRelayType.Community && serverType == 1)
                 select relay
             ).Aggregate(servers, (current, relay) => current + $"{relay.Url};");
         }

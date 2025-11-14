@@ -317,7 +317,7 @@ public sealed class ScaffoldingServer : IAsyncDisposable
 
         var reader = new SequenceReader<byte>(buffer);
 
-        // 检查头部是否完整 (1字节类型长度 + 4字节内容长度)
+        // checking head info
         if (buffer.Length < 1) return false;
         if (!reader.TryRead(out var typeLength)) return false;
 
@@ -326,26 +326,26 @@ public sealed class ScaffoldingServer : IAsyncDisposable
 
         if (reader.Remaining < typeLength + 4) return false;
 
-        // 读取类型信息
+        // read type info
         Span<byte> typeInfoSpan = stackalloc byte[typeLength];
         if (!reader.TryCopyTo(typeInfoSpan)) return false;
         reader.Advance(typeLength);
         var typeInfo = Encoding.UTF8.GetString(typeInfoSpan);
 
-        // 读取内容长度
+        // read body length
         if (!reader.TryReadBigEndian(out int bodyLength32)) return false;
         var bodyLength = (uint)bodyLength32;
         if (bodyLength > maxBodyLength)
             throw new InvalidDataException($"Frame body length {bodyLength} exceeds maximum of {maxBodyLength}.");
 
-        // 检查内容是否完整
+        // checking body info
         if (reader.Remaining < bodyLength) return false;
 
-        // 提取内容
+        // extract body
         var bodyBuffer = reader.Sequence.Slice(reader.Position, bodyLength);
         var body = bodyBuffer.ToArray();
 
-        // 构造帧
+        // build frame
         frame = (typeInfo, body);
 
         reader.Advance(bodyLength);

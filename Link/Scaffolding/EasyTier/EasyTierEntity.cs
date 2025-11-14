@@ -1,5 +1,4 @@
 using PCL.Core.App;
-using PCL.Core.Link.EasyTier;
 using PCL.Core.Link.Scaffolding.Client.Models;
 using PCL.Core.Logging;
 using PCL.Core.Net;
@@ -220,18 +219,18 @@ public class EasyTierEntity
 
     private async Task<IReadOnlyList<string>> _GetEtRelayListAsync()
     {
-        var relays = ETRelay.RelayList;
+        var relays = EasyTierRelayData.RelayList;
         var customedNodes = Config.Link.RelayServer.Split(';', StringSplitOptions.RemoveEmptyEntries);
         foreach (var node in customedNodes)
         {
             if (node.Contains("tcp://", StringComparison.OrdinalIgnoreCase) ||
                 node.Contains("udp://", StringComparison.OrdinalIgnoreCase))
             {
-                relays.Add(new ETRelay
+                relays.Add(new EasyTierRelayData
                 {
                     Url = node,
                     Name = "Custom",
-                    Type = ETRelayType.Custom
+                    Type = EasyTierRelayType.Custom
                 });
             }
             else
@@ -242,9 +241,9 @@ public class EasyTierEntity
 
         var setupRelayList = relays.Select(relay => new { relay, serverType = Config.Link.ServerType })
             .Where(rl =>
-                (rl.relay.Type == ETRelayType.Selfhosted && rl.serverType != 2) ||
-                (rl.relay.Type == ETRelayType.Community && rl.serverType == 1) ||
-                rl.relay.Type == ETRelayType.Custom)
+                (rl.relay.Type == EasyTierRelayType.Selfhosted && rl.serverType != 2) ||
+                (rl.relay.Type == EasyTierRelayType.Community && rl.serverType == 1) ||
+                rl.relay.Type == EasyTierRelayType.Custom)
             .Select(rl => rl.relay.Url).ToImmutableList();
 
         var pubNode = await _GetPublicNodeAsync().ConfigureAwait(false);
@@ -439,7 +438,7 @@ public class EasyTierEntity
             {
                 LogWrapper.Debug("Et Cli", "Getting player info.");
 
-                var info = arr.Deserialize<ETPeerInfo>();
+                var info = arr.Deserialize<EasyTierPeerInfo>();
                 if (info == null)
                 {
                     LogWrapper.Debug("Et Cli", "Player info is null.");
@@ -486,7 +485,7 @@ public class EasyTierEntity
         }
     }
 
-    private static EasyPlayerInfo _ConvertPeerToPlayer(ETPeerInfo info)
+    private static EasyPlayerInfo _ConvertPeerToPlayer(EasyTierPeerInfo info)
     {
         var playerInfo = new EasyPlayerInfo
         {
