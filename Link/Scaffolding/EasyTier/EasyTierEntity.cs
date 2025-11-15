@@ -1,4 +1,5 @@
 using PCL.Core.App;
+using PCL.Core.Link.Lobby;
 using PCL.Core.Link.Scaffolding.Client.Models;
 using PCL.Core.Logging;
 using PCL.Core.Net;
@@ -387,7 +388,7 @@ public class EasyTierEntity
         return localPort;
     }
 
-    /// <exception cref="ArgumentException">Thrown if host is duplicated.</exception>
+    /// <exception cref="InvalidOperationException">Thrown if host is duplicated.</exception>
     private async Task<EtPlayerList> _GetPlayersAsync()
     {
         using var cliProcess = new Process();
@@ -424,7 +425,6 @@ public class EasyTierEntity
             await cliProcess.WaitForExitAsync(cts.Token).ConfigureAwait(false);
 
             var output = stdOut + stdErr;
-            //LogWrapper.Debug("ET Cli", output);
 
             if (JsonNode.Parse(output) is not JsonArray jArray)
             {
@@ -452,7 +452,7 @@ public class EasyTierEntity
                     if (host is not null)
                     {
                         LogWrapper.Debug("Et Cli", "Duplicated host player.");
-                        throw new ArgumentException("Duplicated host.", nameof(host));
+                        throw new InvalidOperationException($"Duplicated host: {host}.");
                     }
 
                     host = _ConvertPeerToPlayer(info);
@@ -463,8 +463,6 @@ public class EasyTierEntity
                 players.Add(_ConvertPeerToPlayer(info));
             }
 
-            LogWrapper.Debug("Et Cli", "Return from GetPlayersAsync().");
-
             var result = host is null ? players : [host, .. players];
 
             return new EtPlayerList(result, host);
@@ -472,7 +470,6 @@ public class EasyTierEntity
         catch (TaskCanceledException tce)
         {
             LogWrapper.Error(tce, "EasyTier", "Failed to read CLI output.");
-            return new EtPlayerList(null, null);
         }
         catch (ArgumentException)
         {
@@ -481,8 +478,9 @@ public class EasyTierEntity
         catch (Exception ex)
         {
             LogWrapper.Error(ex, "EasyTier", "Failed to get EasyTier player list info.");
-            return new EtPlayerList(null, null);
         }
+
+        return new EtPlayerList(null, null);
     }
 
     private static EasyPlayerInfo _ConvertPeerToPlayer(EasyTierPeerInfo info)
@@ -494,7 +492,7 @@ public class EasyTierEntity
             Ip = info.Ipv4,
             Ping = Math.Round(Convert.ToDouble(info.Ping != "-" ? info.Ping : "0")),
             Loss = Math.Round(Convert.ToDouble(info.Loss != "-" ? info.Loss.Replace("%", "") : "0")),
-            NatType = info.NatType,
+            NatType = LobbyTextConverter.GetNatTypeChinese(info.NatType),
             EasyTierVer = info.ETVersion
         };
 
