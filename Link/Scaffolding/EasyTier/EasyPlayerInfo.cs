@@ -1,3 +1,5 @@
+// ReSharper disable MissingXmlDoc
+
 namespace PCL.Core.Link.Scaffolding.EasyTier;
 
 public enum ConnectionWay
